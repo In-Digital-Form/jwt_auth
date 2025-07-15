@@ -63,6 +63,8 @@ class JWTAuth:
         if frappe.flags.get("jwt_logout_redirect", False):
             return False
         self.token = self.get_token(frappe.local.request)
+        if self.token:
+            self.token = self.token[len("Bearer "):].strip()
         if not self.token:
             return False
         if self.is_valid_token(self.token):
