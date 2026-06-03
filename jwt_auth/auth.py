@@ -88,7 +88,8 @@ class JWTAuth:
     def get_logout_url(self):
         logout_url = self.settings.logout_url
         if self.settings.redirect_param:
-            logout_url += f"?{self.settings.redirect_param}={frappe.local.request.url}"
+            redirect_to = frappe.utils.get_url()
+            logout_url += f"?{self.settings.redirect_param}={quote(redirect_to, safe='')}"
         return logout_url
 
     def get_public_keys(self):
@@ -201,6 +202,7 @@ def handle_redirects(response=None, request=None):
 def jwt_logout():
     auth = SessionJWTAuth()
     frappe.local.login_manager.logout()
+    frappe.flags.pop("jwt_logout_redirect", None)
     if auth.settings.enabled:
         return {"redirect_url": auth.get_logout_url()}
     else:
