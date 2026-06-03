@@ -31,12 +31,7 @@ class JWTAuth:
             return
         user_email = self.claims.get("email") if self.claims.get("email") else None
         if user_email:
-            user_exists_in_db = frappe.db.exists("User", user_email)
-            frappe.log_error(
-                title="JWT_DEBUG",
-                message=f"email={user_email} user_exists={user_exists_in_db} enable_reg={self.settings.enable_user_reg} session_user={frappe.session.user}"
-            )
-            if user_exists_in_db:
+            if frappe.db.exists("User", user_email):
                 frappe.local.login_manager.login_as(user_email)
             elif self.settings.enable_user_reg:
                 self.register_user(user_email)
