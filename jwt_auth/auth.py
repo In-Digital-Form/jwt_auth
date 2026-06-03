@@ -90,6 +90,8 @@ class JWTAuth:
         params = []
         if id_token_hint:
             params.append(f"id_token_hint={quote(id_token_hint, safe='')}")
+        elif self.settings.get("client_id"):
+            params.append(f"client_id={quote(self.settings.client_id, safe='')}")
         if self.settings.redirect_param:
             redirect_to = frappe.utils.get_url()
             params.append(f"{self.settings.redirect_param}={quote(redirect_to, safe='')}")

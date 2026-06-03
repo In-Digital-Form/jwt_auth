@@ -14,7 +14,8 @@
   "enable_login",
   "login_url",
   "logout_url",
-  "redirect_param"
+  "redirect_param",
+  "client_id"
  ],
  "fields": [
   {
@@ -78,6 +79,12 @@
    "fieldname": "logout_url",
    "fieldtype": "Data",
    "label": "Logout URL",
+   "width": "100%"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client ID",
    "width": "100%"
   }
  ],
