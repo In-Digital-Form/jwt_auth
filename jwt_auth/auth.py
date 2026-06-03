@@ -52,8 +52,6 @@ class JWTAuth:
     def can_auth(self):
         if self.redirect_to:
             return False
-        if frappe.local.session.user and frappe.local.session.user != "Guest":
-            return False
         if not self.settings.enabled:
             return False
         if frappe.flags.get("jwt_logout_redirect", False):
