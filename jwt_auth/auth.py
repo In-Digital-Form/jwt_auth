@@ -42,6 +42,8 @@ class JWTAuth:
             ).run(as_dict=True)
             if user_exists and user_exists[0].get('user', False):
                 frappe.local.login_manager.login_as(user_exists[0].get("user"))
+            elif frappe.db.exists("User", user_email):
+                frappe.local.login_manager.login_as(user_email)
             elif self.settings.enable_user_reg:
                 self.register_user(user_email)
                 frappe.local.login_manager.login_as(user_email)
@@ -139,6 +141,9 @@ class JWTAuth:
         return valid_token
 
     def register_user(self, user_email):
+        if frappe.db.exists("User", user_email):
+            return
+
         contact = frappe.db.get_value(
             "Contact Email", {"email_id": user_email}, "parent"
         )
