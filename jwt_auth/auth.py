@@ -42,11 +42,9 @@ class JWTAuth:
             ).run(as_dict=True)
             if user_exists and user_exists[0].get('user', False):
                 frappe.local.login_manager.login_as(user_exists[0].get("user"))
-                frappe.session.data["jwt_token"] = self.token
             elif self.settings.enable_user_reg:
                 self.register_user(user_email)
                 frappe.local.login_manager.login_as(user_email)
-                frappe.session.data["jwt_token"] = self.token
                 if self.redirect_to:
                     frappe.session.data["jwt_auth_redirect"] = self.redirect_to
                     frappe.cache().set_value(f"jwt_original_location_{user_email}",frappe.local.request.path)
@@ -205,10 +203,18 @@ def handle_redirects(response=None, request=None):
     return
 
 
+def _get_jwt_token_from_request():
+    auth = SessionJWTAuth()
+    token = auth.get_token(frappe.local.request)
+    if token:
+        token = token[len("Bearer "):].strip()
+    return token
+
+
 @frappe.whitelist()
 def jwt_logout():
     auth = SessionJWTAuth()
-    token = frappe.session.data.get("jwt_token")
+    token = _get_jwt_token_from_request()
     frappe.local.login_manager.logout()
     frappe.flags.pop("jwt_logout_redirect", None)
     if auth.settings.enabled:
@@ -220,14 +226,14 @@ def jwt_logout():
 @frappe.whitelist()
 def on_logout():
     auth = SessionJWTAuth()
-    token = frappe.session.data.get("jwt_token")
+    token = _get_jwt_token_from_request()
     frappe.flags["jwt_logout_redirect"] = auth.get_logout_url(id_token_hint=token)
 
 
 @frappe.whitelist()
 def web_logout():
     auth = SessionJWTAuth()
-    token = frappe.session.data.get("jwt_token")
+    token = _get_jwt_token_from_request()
     frappe.local.login_manager.logout()
     if auth.settings.enabled:
         location = auth.get_logout_url(id_token_hint=token)
