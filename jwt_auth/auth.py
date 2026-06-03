@@ -42,9 +42,11 @@ class JWTAuth:
             ).run(as_dict=True)
             if user_exists and user_exists[0].get('user', False):
                 frappe.local.login_manager.login_as(user_exists[0].get("user"))
+                frappe.session.data["jwt_token"] = self.token
             elif self.settings.enable_user_reg:
                 self.register_user(user_email)
                 frappe.local.login_manager.login_as(user_email)
+                frappe.session.data["jwt_token"] = self.token
                 if self.redirect_to:
                     frappe.session.data["jwt_auth_redirect"] = self.redirect_to
                     frappe.cache().set_value(f"jwt_original_location_{user_email}",frappe.local.request.path)
@@ -85,11 +87,16 @@ class JWTAuth:
                 login_url += f"?{self.settings.redirect_param}={path}"
         return login_url
 
-    def get_logout_url(self):
+    def get_logout_url(self, id_token_hint=None):
         logout_url = self.settings.logout_url
+        params = []
+        if id_token_hint:
+            params.append(f"id_token_hint={quote(id_token_hint, safe='')}")
         if self.settings.redirect_param:
             redirect_to = frappe.utils.get_url()
-            logout_url += f"?{self.settings.redirect_param}={quote(redirect_to, safe='')}"
+            params.append(f"{self.settings.redirect_param}={quote(redirect_to, safe='')}")
+        if params:
+            logout_url += "?" + "&".join(params)
         return logout_url
 
     def get_public_keys(self):
@@ -201,10 +208,11 @@ def handle_redirects(response=None, request=None):
 @frappe.whitelist()
 def jwt_logout():
     auth = SessionJWTAuth()
+    token = frappe.session.data.get("jwt_token")
     frappe.local.login_manager.logout()
     frappe.flags.pop("jwt_logout_redirect", None)
     if auth.settings.enabled:
-        return {"redirect_url": auth.get_logout_url()}
+        return {"redirect_url": auth.get_logout_url(id_token_hint=token)}
     else:
         return {"redirect_url": "/login"}
 
@@ -212,15 +220,17 @@ def jwt_logout():
 @frappe.whitelist()
 def on_logout():
     auth = SessionJWTAuth()
-    frappe.flags["jwt_logout_redirect"] = auth.get_logout_url()
+    token = frappe.session.data.get("jwt_token")
+    frappe.flags["jwt_logout_redirect"] = auth.get_logout_url(id_token_hint=token)
 
 
 @frappe.whitelist()
 def web_logout():
     auth = SessionJWTAuth()
+    token = frappe.session.data.get("jwt_token")
     frappe.local.login_manager.logout()
     if auth.settings.enabled:
-        location = auth.get_logout_url()
+        location = auth.get_logout_url(id_token_hint=token)
     else:
         location = "/login"
     frappe.local.response["type"] = "redirect"
