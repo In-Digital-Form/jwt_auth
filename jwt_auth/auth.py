@@ -31,18 +31,7 @@ class JWTAuth:
             return
         user_email = self.claims.get("email") if self.claims.get("email") else None
         if user_email:
-            Contact = frappe.qb.DocType("Contact")
-            ContactEmail = frappe.qb.DocType("Contact Email")
-            user_exists = (
-                frappe.qb.from_(Contact)
-                .select("user")
-                .join(ContactEmail)
-                .on(Contact.name == ContactEmail.parent)
-                .where(ContactEmail.email_id == user_email)
-            ).run(as_dict=True)
-            if user_exists and user_exists[0].get('user', False):
-                frappe.local.login_manager.login_as(user_exists[0].get("user"))
-            elif frappe.db.exists("User", user_email):
+            if frappe.db.exists("User", user_email):
                 frappe.local.login_manager.login_as(user_email)
             elif self.settings.enable_user_reg:
                 self.register_user(user_email)
@@ -144,47 +133,19 @@ class JWTAuth:
         if frappe.db.exists("User", user_email):
             return
 
-        contact = frappe.db.get_value(
-            "Contact Email", {"email_id": user_email}, "parent"
+        name = self.claims.get("name", "[Change Me]")
+        preferred_username = self.claims.get("preferred_username", user_email)
+
+        user = frappe.get_doc(
+            {
+                "doctype": "User",
+                "email": user_email,
+                "username": preferred_username,
+                "first_name": name,
+                "send_welcome_email": 0,
+            }
         )
-
-        if contact:
-            contact = frappe.get_doc("Contact", contact)
-            user = frappe.get_doc(
-                {
-                    "doctype": "User",
-                    "email": user_email,
-                    "username": user_email,
-                    "first_name": contact.first_name or "[Change Me]",
-                    "middle_name": contact.middle_name,
-                    "last_name": contact.last_name,
-                    "full_name": contact.full_name,
-                    "phone": contact.phone,
-                    "mobile_no": contact.mobile_no,
-                    "gender": contact.gender,
-                    "send_welcome_email": 0,
-                    "company_name": contact.company_name,
-                }
-            )
-            user.insert(ignore_permissions=True)
-
-            contact.user = user_email
-            contact.save(ignore_permissions=True)
-
-            if not contact.first_name:
-                self.redirect_to = f"/update-profile/{user_email}/edit"
-        else:
-            user = frappe.get_doc(
-                {
-                    "doctype": "User",
-                    "email": user_email,
-                    "first_name": "[Change Me]",
-                    "send_welcome_email": 0,
-                }
-            )
-            user.insert(ignore_permissions=True)
-
-            self.redirect_to = f"/update-profile/{user_email}/edit"
+        user.insert(ignore_permissions=True)
 
         frappe.db.commit()
 
