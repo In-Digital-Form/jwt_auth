@@ -160,6 +160,12 @@ class JWTAuth:
 
         frappe.db.commit()
 
+        role = frappe.get_conf().get("keycloak_default_role") or "Architect"
+        if frappe.db.exists("Role", role):
+            user = frappe.get_doc("User", user_email)
+            user.append("roles", {"role": role})
+            user.save(ignore_permissions=True)
+
 
 def handle_redirects(response=None, request=None):
     if not response or not hasattr(frappe, "session"):
