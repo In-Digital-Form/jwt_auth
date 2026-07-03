@@ -89,12 +89,24 @@ class JWTAuth:
         return logout_url
 
     def get_public_keys(self):
-        r = requests.get(self.settings.jwks_url)
         public_keys = []
-        jwk_set = r.json()
-        for key_dict in jwk_set["keys"]:
-            public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key_dict))
-            public_keys.append(public_key)
+        try:
+            r = requests.get(self.settings.jwks_url, timeout=10)
+            r.raise_for_status()
+            jwk_set = r.json()
+            for key_dict in jwk_set.get("keys", []):
+                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key_dict))
+                public_keys.append(public_key)
+        except requests.RequestException as e:
+            frappe.log_error(
+                message=f"JWKS request failed for {self.settings.jwks_url}: {e}",
+                title="JWT Auth: JWKS fetch failed",
+            )
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            frappe.log_error(
+                message=f"JWKS parse failed for {self.settings.jwks_url}: {e}",
+                title="JWT Auth: JWKS parse failed",
+            )
         return public_keys
 
     def get_token(self, request):
@@ -134,6 +146,7 @@ class JWTAuth:
         name = self.claims.get("name", "[Change Me]")
         preferred_username = self.claims.get("preferred_username", user_email)
 
+        frappe.flags.jwt_auth_creating_user = True
         user = frappe.get_doc(
             {
                 "doctype": "User",
